@@ -1,12 +1,13 @@
 """
-SEN12MS inpaiting
+SEN12MS inpaiting local
 Main script for the inpainting of SAR tiles using the Deep Image Prior.
 Code takes something from the original DIP repo ((https://dmitryulyanov.github.io/deep_image_prior))
 and DIPPAS (https://github.com/polimi-ispl/dip_prnu_anonymizer/blob/master/main_1_dip.py).
 The code is designed to work on the SEN12MS dataset, and allows to perform inpainting based on the
-land-cover content of the tile.
+morphological content of the tile.
 The content is described using a simplified label scheme derived from the MODIS IGBP. This simplified scheme is the same
 adopted in the IEEE GRSS DFC 2020 (https://ieee-dataport.org/competitions/2020-ieee-grss-data-fusion-contest).
+LOCAL: we avoid logging on wandb as it seems the bottleneck in the usage of the GPU
 
 """
 
@@ -20,7 +21,6 @@ import torch.optim
 import time
 import os
 import glob
-import wandb
 import argparse
 from models import create_network
 import tqdm
@@ -29,7 +29,10 @@ from utils.data import SEN12MSS1InpaintingDatasetFolder, load_SEN12MS_s1_raster,
 from torchvision.transforms import ToTensor, Compose
 from utils.isplutils import tiff_to_float32, to8, make_dir_tag, select_loss
 from utils.pytorch_ssim import SSIM
+from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pyplot as plt
 from utils.common_utils import get_noise, get_params, torch_to_np
+
 
 # Helpers functions and classes
 
@@ -89,41 +92,40 @@ class OptimizationRoutine:
         #     it_images.append(wandb.Image(self.img_var * self.mask_var, caption='Object deletion'))
         #     if it == self.num_iter:
         #         it_images.append(wandb.Image(out, caption='Reconstructed image final model'))
-        if it+1 == self.num_iter:
+        if it+1 == self.num_iter :
             # Plot with wandb
-            if self.img_var.shape[1] > 1:  # double polarization plot
-                # Convert float32 tensor to uint8 numpy array (avoids ugly normalization by WandB and bad plots)
-                orig_plot = torch_to_np(self.img_var)
-                orig_plot = np.concat([(pol-pol.min())/(pol.max()-pol.min()) for pol in orig_plot])
-                orig_plot = (orig_plot*255).astype(np.uint8)
-                inp_plot = torch_to_np(out)
-                inp_plot = np.concat([(pol - pol.min()) / (pol.max() - pol.min()) for pol in inp_plot])
-                inp_plot = (inp_plot * 255).astype(np.uint8)
-                # Log them
-                it_images.append(wandb.Image(orig_plot[0], caption='Original VV polarization'))
-                it_images.append(wandb.Image(orig_plot[1], caption='Original VH polarization'))
-                it_images.append(wandb.Image(self.mask_var, caption='Mask variable'))
-                it_images.append(wandb.Image(inp_plot[0], caption='Reconstructed image final model VV polarization'))
-                it_images.append(wandb.Image(inp_plot[1], caption='Reconstructed image final model VH polarization'))
+            if self.img_var.shape[1] > 1:
+                fig, axs = plt.subplots(1, 5, figsize=(24, 12))
+                axs[0].imshow(self.img_var[0, 0].cpu().detach().squeeze().numpy(), cmap='gray'), \
+                axs[0].set_title('Original VV polarization')
+                axs[1].imshow(self.img_var[0, 1].cpu().detach().squeeze().numpy(), cmap='gray'), \
+                axs[1].set_title('Original VH polarization')
+                axs[2].imshow((self.img_var[0, 0] * self.mask_var).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[2].set_title('Object deletion VV')
+                axs[3].imshow(torch.clip(out[0, 0], min=self.img_var[0, 0].min(),
+                                         max=self.img_var[0, 0].max()).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[3].set_title('Reconstructed image final model VV polarization')
+                axs[4].imshow(torch.clip(out[0, 1], min=self.img_var[0, 1].min(),
+                                         max=self.img_var[0, 1].max()).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[4].set_title('Reconstructed image final model VH polarization')
+                it_images.append(fig)
             else:
-                # Convert float32 tensor to uint8 numpy array (avoids ugly normalization by WandB and bad plots)
-                orig_plot = torch_to_np(self.img_var)
-                orig_plot = (orig_plot-orig_plot.min())/(orig_plot.max()-orig_plot.min())  # convert between 0 and 1
-                orig_plot = (orig_plot * 255).astype(np.uint8)  # cast a uint8 matrix
-                inp_plot = torch_to_np(out)
-                inp_plot = (inp_plot-inp_plot.min())/(inp_plot.max()-inp_plot.min())  # convert between 0 and 1
-                inp_plot = (inp_plot * 255).astype(np.uint8)  # cast a uint8 matrix
-                # Log them
-                it_images.append(wandb.Image(orig_plot, caption='Original'))
-                it_images.append(wandb.Image(self.mask_var, caption='Mask variable'))
-                it_images.append(wandb.Image(inp_plot,
-                                             caption='Reconstructed image final model'))
+                fig, axs = plt.subplots(1, 5, figsize=(24, 12))
+                axs[0].imshow(self.img_var[0, 0].cpu().detach().squeeze().numpy(), cmap='gray'), \
+                axs[0].set_title('Original')
+                axs[1].imshow((self.img_var[0, 0] * self.mask_var).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[1].set_title('Object deletion')
+                axs[2].imshow(torch.clip(out[0, 0], min=self.img_var[0, 0].min(),
+                                         max=self.img_var[0, 0].max()).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[2].set_title('Reconstructed image final model')
+                it_images.append(fig)
 
         return total_loss, it_images
 
 
 def optimize(optimizer_type, parameters, routine: OptimizationRoutine, lr: float, num_iter: int,
-             schedule_lr_patience: int = None, schedule_lr_factor: float = None, img_name: str =None):
+             schedule_lr_patience: int = None, schedule_lr_factor: float = None, img_name: str =None,
+             tb: SummaryWriter=None):
     """
     Runs optimization loop.
 
@@ -136,6 +138,7 @@ def optimize(optimizer_type, parameters, routine: OptimizationRoutine, lr: float
         schedule_lr_patience: LR scheduler patience
         schedule_lr_factor: LR scheduler factor
         img_name: name of the image, used for logging a different section for each sample
+        tb: SummaryWriter, tensorboard summary writer for logging statistics
     """
 
     if optimizer_type == 'adam':
@@ -155,14 +158,12 @@ def optimize(optimizer_type, parameters, routine: OptimizationRoutine, lr: float
                 scheduler.step(loss)
             # Logging
             if len(it_images):
-                wandb.log({'{}Iteration loss'.format(tag): loss.item(),
-                           '{}Network output'.format(tag): it_images,
-                           '{}Learning rate'.format(tag): optimizer.param_groups[0]['lr'],
-                           'It': j})
+                tb.add_scalar('{}Iteration loss'.format(tag), loss.item(), j)
+                tb.add_scalar('{}Learning rate'.format(tag), optimizer.param_groups[0]['lr'], j)
+                tb.add_figure('{}Network output'.format(tag), it_images[0], j)
             else:
-                wandb.log({'{}Iteration loss'.format(tag): loss.item(),
-                           '{}Learning rate'.format(tag): optimizer.param_groups[0]['lr'],
-                           'It': j})
+                tb.add_scalar('{}Iteration loss'.format(tag), loss.item(), j)
+                tb.add_scalar('{}Learning rate'.format(tag), optimizer.param_groups[0]['lr'], j)
 
     elif optimizer_type == 'sgd':
         # Instantiate optimization and scheduler
@@ -182,14 +183,13 @@ def optimize(optimizer_type, parameters, routine: OptimizationRoutine, lr: float
                 scheduler.step(loss)
             # Logging
             if len(it_images):
-                wandb.log({'{}Iteration loss'.format(tag): loss.item(),
-                           '{}Network output'.format(tag): it_images,
-                           '{}Learning rate'.format(tag): optimizer.param_groups[0]['lr'],
-                           'It': j})
+                tb.add_scalar('{}Iteration loss'.format(tag), loss.item(), j)
+                tb.add_scalar('{}Learning rate'.format(tag), optimizer.param_groups[0]['lr'], j)
+                tb.add_figure('{}Network output'.format(tag), it_images[0], j)
             else:
-                wandb.log({'{}Iteration loss'.format(tag): loss.item(),
-                           '{}Learning rate'.format(tag): optimizer.param_groups[0]['lr'],
-                           'It': j})
+                tb.add_scalar('{}Iteration loss'.format(tag), loss.item(), j)
+                tb.add_scalar('{}Learning rate'.format(tag), optimizer.param_groups[0]['lr'], j)
+
     else:
         assert False
 
@@ -226,41 +226,40 @@ def train(args: argparse.Namespace):
     data_df = data_df.loc[data_df['sensor_s1']=='s1'].reset_index(drop=True)
 
     # Instantiate torchvision.Transforms and the DataLoader
-    trans = Compose([S1Normalize(mz_norm=args.mz_score_norm)])
+    trans = Compose([S1Normalize(mz_norm=args.mz_score_norm, mean_std=args.mean_std_norm, linear=args.linear)])
     dataset = SEN12MSS1InpaintingDatasetFolder(df=data_df, loader=load_SEN12MS_s1_raster, transforms=trans,
                                                inp_size=(args.inp_size, args.inp_size), pol_bands=pol_bands)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
 
     # Create the config dictionary
-    config_defaults = {
+    train_hyperparams = {
         # Insert all the parameter you want WandB to sweep over
         'net': args.net,
-        'input_depth': args.input_depth,
         'inp_classes': 'Urban' if args.inp_classes=='Urban/Built-up' else args.inp_classes,
         'perc_area_cov': perc_area_cov,
-        'inp_size': args.inp_size,
-        'pad': args.pad,
-        'upsample': args.upsample,
         'activation': args.activation,
         'loss_1': args.loss_1,
         'loss_2': args.loss_2,
         'loss_balance': args.loss_balance,
         'pol_bands': pol_bands,
         'mz_norm': args.mz_score_norm,
+        'mean_std_norm': args.mean_std_norm,
+        'linear': args.linear,
         'need_sigmoid': args.need_sigmoid
     }
-    # config_defaults['experiment'] = make_dir_tag(config_defaults, args.debug, args.suffix)
-    wandb.init(project=args.project_name, config=config_defaults, name=make_dir_tag(config_defaults, args.debug, args.suffix),
-               settings=wandb.Settings(start_method='thread'), reinit=True)
 
     # Create the output dir
-    save_dir = os.path.join(args.output_dir, make_dir_tag(dict(wandb.config.items()), args.debug, args.suffix))
-    os.makedirs(save_dir, exist_ok=True)
+    save_dir = os.path.join(args.output_dir, make_dir_tag(train_hyperparams, args.debug, args.suffix))
+    log_dir = os.path.join(save_dir, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Tensorboard instance
+    tb = SummaryWriter(log_dir=log_dir)
 
     # Warn the user
     if (args.slack_user is not None) & (not args.debug):
         slack_m = ISPLSlack()
-        slack_m.to_user(recipient=args.slack_user, message='Doing the following configuration {}...'.format(dict(wandb.config.items())))
+        slack_m.to_user(recipient=args.slack_user, message='Doing the following configuration {}...'.format(train_hyperparams))
 
     # MAIN LOOP #
     final_loss = []  # final loss array
@@ -274,7 +273,7 @@ def train(args: argparse.Namespace):
         # Configure wandb for logging a section for each sample
         # wandb.init(project=args.project_name, config=config_defaults, tags=[img_name[0]], reinit=True)  # need to work it out
         # Create the network input
-        net_input = get_noise(input_depth=wandb.config.input_depth, method='noise',
+        net_input = get_noise(input_depth=args.input_depth, method='noise',
                               spatial_size=img.shape[2:], noise_type=args.noise_dist,
                               var=args.noise_std, noise_range=args.noise_range).type(dtype)
         net_input_saved = net_input.detach().clone()
@@ -283,40 +282,41 @@ def train(args: argparse.Namespace):
         img = img.type(dtype)
         mask = mask.type(dtype)
         # Create the network
-        net = create_network(net_name=wandb.config.net, input_depth=wandb.config.input_depth, pad=wandb.config.pad,
-                             upsample=wandb.config.upsample, activation=wandb.config.activation,
-                             need_sigmoid=args.need_sigmoid, num_channels=img.shape[1], dtype=dtype)
+        net = create_network(net_name=train_hyperparams['net'], input_depth=args.input_depth,
+                             pad=args.pad, upsample=args.upsample,
+                             activation=train_hyperparams['activation'], need_sigmoid=train_hyperparams['need_sigmoid'],
+                             num_channels=img.shape[1], dtype=dtype)
         # wandb.watch(net, log='gradients', idx=img_idx)  # log gradients of the model (don't care for now)
         # Create the optimization routine
 
         # Instatiate the loss functions and weight
-        if wandb.config.loss_1 != wandb.config.loss_2:
-            loss_1 = select_loss(wandb.config.loss_1, dtype)
-            loss_2 = select_loss(wandb.config.loss_2, dtype)
+        if train_hyperparams['loss_1'] != train_hyperparams['loss_2']:
+            loss_1 = select_loss(train_hyperparams['loss_1'], dtype)
+            loss_2 = select_loss(train_hyperparams['loss_2'], dtype)
         else:
-            loss_1 = loss_2 = select_loss(wandb.config.loss_1, dtype)
+            loss_1 = loss_2 = select_loss(train_hyperparams['loss_1'], dtype)
             print('Watch out! The two losses are equal! Going to use a single one.')
-        loss_balance = wandb.config.loss_balance
+        loss_balance = train_hyperparams['loss_balance']
 
         # Instantiate the optimization routine
         routine = OptimizationRoutine(net=net, net_input_saved=net_input_saved, reg_noise_std=args.noise_std,
                                       noise=noise, mask_var=mask, img_var=img, loss_1=loss_1, loss_2=loss_2,
-                                      loss_balance=wandb.config.loss_balance,
+                                      loss_balance=train_hyperparams['loss_balance'],
                                       param_noise=args.param_noise, log_int=args.log_int, num_iter=args.max_iter)
         # OPTIMIZATION LOOP #
         p = get_params('net', routine.net, net_input)
         tic = time.time()  # log time for optimization
         optimize(optimizer_type=args.optimizer, parameters=p, routine=routine, lr=args.lr,
                  num_iter=args.max_iter, schedule_lr_patience=args.lr_patience, schedule_lr_factor=args.lr_factor,
-                 img_name=f'Sample {img_idx}')
+                 img_name=f'Sample {img_idx}', tb=tb)
         toc = time.time()
-        wandb.log({'Optimization time': toc-tic, 'Img': img_idx})  # save optimization time
+        tb.add_scalar('Optimization time', toc-tic, img_idx)  # save optimization time
         # Compute PSNR as an additional metric
         out_img = torch_to_np(net(net_input))
         mse = np.mean((torch_to_np(img)-out_img)**2)
-        wandb.log({'Final MSE': mse, 'Img': img_idx})
-        wandb.log({'Final Peak-SNR': 10 * np.log10((img.max().detach().cpu().numpy() - img.min().detach().cpu().numpy()) ** 2 / mse),
-                   'Img': img_idx})
+        tb.add_scalar('Final MSE', mse, img_idx)
+        tb.add_scalar('Final Peak-SNR', 10 * np.log10((img.max().detach().cpu().numpy() - img.min().detach().cpu().numpy()) ** 2 / mse),
+                      img_idx)
         # Save the obtained images
         # WATCH OUT: already does it Wandb locally, but we might want to clean up after our mess and still preserving the images
         out_np = np.squeeze(torch_to_np(net(net_input)))
@@ -348,7 +348,7 @@ def train(args: argparse.Namespace):
             else:
                 final_loss.append(loss_1(net(net_input) * mask, img * mask).item() * loss_balance \
                                   + (1 - loss_balance) * loss_2(net(net_input) * mask, img * mask).item())
-        wandb.log({'Average final dataset loss': np.mean(final_loss), 'Img': img_idx})
+        tb.add_scalar('Average final dataset loss', np.mean(final_loss), img_idx)
 
     # Save final inpainting DataFrame
     inp_df.to_pickle(os.path.join(save_dir, 'inpainting_df.pkl'))
@@ -388,8 +388,11 @@ def main():
     parser.add_argument('--inp_size', type=int, help='Inpainting size. For the moment, the inpainted area is a square,'
                                                      'only 1 parameter needed',
                         default=64)
-    parser.add_argument('--mz_score_norm', action='store_true', help='Whether to apply the modified Z-score normalization'
+    input_norm = parser.add_mutually_exclusive_group()
+    input_norm.add_argument('--mz_score_norm', action='store_true', help='Whether to apply the modified Z-score normalization'
                                                                      'or not')
+    input_norm.add_argument('--mean_std_norm', action='store_true', help='Whether to apply the standard mean-std norm by the authors')
+    parser.add_argument('--linear', action='store_true', help='Whether to conver the data to linear scale rather than dB')
     # Training hyperparams
     parser.add_argument('--max_iter', type=int, help='Number of iteration on the sample', default=3001)
     parser.add_argument('--lr', type=float, help='Learning rate', default=1e-3)
