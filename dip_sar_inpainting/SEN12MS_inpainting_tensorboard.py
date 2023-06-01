@@ -7,8 +7,7 @@ The code is designed to work on the SEN12MS dataset, and allows to perform inpai
 morphological content of the tile.
 The content is described using a simplified label scheme derived from the MODIS IGBP. This simplified scheme is the same
 adopted in the IEEE GRSS DFC 2020 (https://ieee-dataport.org/competitions/2020-ieee-grss-data-fusion-contest).
-LOCAL: we avoid logging on wandb as it seems the bottleneck in the usage of the GPU
-
+tensorboard: we avoid logging on wandb as it seems the bottleneck in the usage of the GPU
 """
 
 # Libraries import
@@ -84,40 +83,51 @@ class OptimizationRoutine:
                          self.loss_2(out * self.mask_var, self.img_var * self.mask_var)*(1 - self.loss_balance)
         total_loss.backward()
 
+        # Logging
         print('Iteration %05d    Loss %f' % (it, total_loss.item()), '\r', end='')
         it_images = []
-        # if (self.log_int and it % self.log_int == 0) or it == self.num_iter :
-        #     # Plot with wandb
-        #     it_images.append(wandb.Image(self.img_var, caption='Original'))
-        #     it_images.append(wandb.Image(self.img_var * self.mask_var, caption='Object deletion'))
-        #     if it == self.num_iter:
-        #         it_images.append(wandb.Image(out, caption='Reconstructed image final model'))
-        if it+1 == self.num_iter :
-            # Plot with wandb
+        if (self.log_int and it % self.log_int == 0) or it == self.num_iter:
+            # Plot with tensorboard
             if self.img_var.shape[1] > 1:
+                # Convert float32 tensor to uint8 numpy array (avoids ugly normalization by WandB and bad plots)
+                orig_plot = torch_to_np(self.img_var)
+                orig_plot = np.concat([(pol - pol.min()) / (pol.max() - pol.min()) for pol in orig_plot])
+                orig_plot = (orig_plot * 255).astype(np.uint8)
+                inp_plot = torch_to_np(out)
+                inp_plot = np.concat([(pol - pol.min()) / (pol.max() - pol.min()) for pol in inp_plot])
+                inp_plot = (inp_plot * 255).astype(np.uint8)
+                # Plot them
                 fig, axs = plt.subplots(1, 5, figsize=(24, 12))
-                axs[0].imshow(self.img_var[0, 0].cpu().detach().squeeze().numpy(), cmap='gray'), \
+                axs[0].imshow(orig_plot[0], cmap='gray'), \
                 axs[0].set_title('Original VV polarization')
-                axs[1].imshow(self.img_var[0, 1].cpu().detach().squeeze().numpy(), cmap='gray'), \
+                axs[1].imshow(orig_plot[1], cmap='gray'), \
                 axs[1].set_title('Original VH polarization')
-                axs[2].imshow((self.img_var[0, 0] * self.mask_var).cpu().detach().squeeze().numpy(), cmap='gray')
-                axs[2].set_title('Object deletion VV')
-                axs[3].imshow(torch.clip(out[0, 0], min=self.img_var[0, 0].min(),
-                                         max=self.img_var[0, 0].max()).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[2].imshow((self.mask_var).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[2].set_title('Deletion mask')
+                axs[3].imshow(inp_plot[0], cmap='gray')
                 axs[3].set_title('Reconstructed image final model VV polarization')
-                axs[4].imshow(torch.clip(out[0, 1], min=self.img_var[0, 1].min(),
-                                         max=self.img_var[0, 1].max()).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[4].imshow(inp_plot[1], cmap='gray')
                 axs[4].set_title('Reconstructed image final model VH polarization')
+                # Log them
                 it_images.append(fig)
             else:
+                # Convert float32 tensor to uint8 numpy array (avoids ugly normalization by WandB and bad plots)
+                orig_plot = torch_to_np(self.img_var)
+                orig_plot = (orig_plot - orig_plot.min()) / (
+                            orig_plot.max() - orig_plot.min())  # convert between 0 and 1
+                orig_plot = (orig_plot * 255).astype(np.uint8)  # cast a uint8 matrix
+                inp_plot = torch_to_np(out)
+                inp_plot = (inp_plot - inp_plot.min()) / (inp_plot.max() - inp_plot.min())  # convert between 0 and 1
+                inp_plot = (inp_plot * 255).astype(np.uint8)  # cast a uint8 matrix
+                # Plot them
                 fig, axs = plt.subplots(1, 5, figsize=(24, 12))
-                axs[0].imshow(self.img_var[0, 0].cpu().detach().squeeze().numpy(), cmap='gray'), \
+                axs[0].imshow(orig_plot[0], cmap='gray'), \
                 axs[0].set_title('Original')
-                axs[1].imshow((self.img_var[0, 0] * self.mask_var).cpu().detach().squeeze().numpy(), cmap='gray')
-                axs[1].set_title('Object deletion')
-                axs[2].imshow(torch.clip(out[0, 0], min=self.img_var[0, 0].min(),
-                                         max=self.img_var[0, 0].max()).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[1].imshow((self.mask_var).cpu().detach().squeeze().numpy(), cmap='gray')
+                axs[1].set_title('Deletion mask')
+                axs[2].imshow(inp_plot[0], cmap='gray')
                 axs[2].set_title('Reconstructed image final model')
+                # Log them
                 it_images.append(fig)
 
         return total_loss, it_images
@@ -255,11 +265,6 @@ def train(args: argparse.Namespace):
 
     # Tensorboard instance
     tb = SummaryWriter(log_dir=log_dir)
-
-    # Warn the user
-    if (args.slack_user is not None) & (not args.debug):
-        slack_m = ISPLSlack()
-        slack_m.to_user(recipient=args.slack_user, message='Doing the following configuration {}...'.format(train_hyperparams))
 
     # MAIN LOOP #
     final_loss = []  # final loss array

@@ -81,15 +81,10 @@ class OptimizationRoutine:
                          self.loss_2(out * self.mask_var, self.img_var * self.mask_var)*(1 - self.loss_balance)
         total_loss.backward()
 
+        # Logging
         print('Iteration %05d    Loss %f' % (it, total_loss.item()), '\r', end='')
         it_images = []
-        # if (self.log_int and it % self.log_int == 0) or it == self.num_iter :
-        #     # Plot with wandb
-        #     it_images.append(wandb.Image(self.img_var, caption='Original'))
-        #     it_images.append(wandb.Image(self.img_var * self.mask_var, caption='Object deletion'))
-        #     if it == self.num_iter:
-        #         it_images.append(wandb.Image(out, caption='Reconstructed image final model'))
-        if it+1 == self.num_iter:
+        if (self.log_int and it % self.log_int == 0) or it == self.num_iter:
             # Plot with wandb
             if self.img_var.shape[1] > 1:  # double polarization plot
                 # Convert float32 tensor to uint8 numpy array (avoids ugly normalization by WandB and bad plots)
@@ -257,11 +252,6 @@ def train(args: argparse.Namespace):
     save_dir = os.path.join(args.output_dir, make_dir_tag(dict(wandb.config.items()), args.debug, args.suffix))
     os.makedirs(save_dir, exist_ok=True)
 
-    # Warn the user
-    if (args.slack_user is not None) & (not args.debug):
-        slack_m = ISPLSlack()
-        slack_m.to_user(recipient=args.slack_user, message='Doing the following configuration {}...'.format(dict(wandb.config.items())))
-
     # MAIN LOOP #
     final_loss = []  # final loss array
     inp_df = data_df.copy()
@@ -353,9 +343,10 @@ def train(args: argparse.Namespace):
     # Save final inpainting DataFrame
     inp_df.to_pickle(os.path.join(save_dir, 'inpainting_df.pkl'))
 
-def main():
-    # Parser arguments #
 
+def main():
+
+    # Parser arguments #
     parser = argparse.ArgumentParser()
     # Execution params
     parser.add_argument('--gpu', type=int, default=None, help='GPU on which execute the code')

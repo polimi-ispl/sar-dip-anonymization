@@ -14,7 +14,7 @@ import rasterio
 import os
 from socket import gethostname
 from PIL import Image
-from pytorch_ssim import SSIM
+from .pytorch_ssim import SSIM
 
 
 # --- Functions
