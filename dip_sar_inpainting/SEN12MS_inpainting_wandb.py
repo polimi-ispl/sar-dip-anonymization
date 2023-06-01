@@ -362,8 +362,6 @@ def main():
     parser.add_argument('--gpu', type=int, default=None, help='GPU on which execute the code')
     parser.add_argument('--project_name', type=str, help='Name of the project for the WandB logging',
                         default='SEN12MS-SAR-DIP-inpainting')
-    parser.add_argument('--slack_user', type=str, default='edo.cannas', help='User to warn on slack for the execution'
-                                                                             'of the script')
     parser.add_argument('--output_dir', type=str, help='Directory for storing the results of the experiments',
                         required=True)
     parser.add_argument('--log_int', type=int, help='Logging interval for wandb', default=500)
@@ -437,20 +435,11 @@ def main():
 
     # Call main
     print('Starting DIP on SEN12MS tiles...')
-    if (args.slack_user is not None) & (not args.debug):
-        slack_m = ISPLSlack()
-        slack_m.to_user(recipient=args.slack_user, message='Starting DIP on SEN12MS tiles...')
     try:
         train(args)
     except Exception as e:
         print('Something happened! Error is {}'.format(e))
-        if (args.slack_user is not None) & (not args.debug):
-            slack_m = ISPLSlack()
-            slack_m.to_user(recipient=args.slack_user, message='Something happened! Error is {}'.format(e))
     print('Done! Bye!')
-    if (args.slack_user is not None) & (not args.debug):
-        slack_m = ISPLSlack()
-        slack_m.to_user(recipient=args.slack_user, message='DIP on SEN12MS tiles done!')
 
 
 if __name__ == '__main__':
