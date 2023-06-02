@@ -243,8 +243,9 @@ def train(args: argparse.Namespace):
 
     # Instantiate torchvision.Transforms and the DataLoader
     trans = Compose([S1Normalize(mz_norm=args.mz_score_norm, mean_std=args.mean_std_norm, linear=args.linear)])
-    dataset = SEN12MSS1InpaintingDatasetFolder(df=data_df, loader=load_SEN12MS_s1_raster, transforms=trans,
-                                               inp_size=(args.inp_size, args.inp_size), pol_bands=pol_bands)
+    dataset = SEN12MSS1InpaintingDatasetFolder(data_root=args.SEN12MS_root, df=data_df, loader=load_SEN12MS_s1_raster,
+                                               transforms=trans, inp_size=(args.inp_size, args.inp_size),
+                                               pol_bands=pol_bands)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
 
     # Create the config dictionary
@@ -378,6 +379,7 @@ def main():
     parser.add_argument('--log_int', type=int, help='Logging interval for wandb', default=500)
     parser.add_argument('--debug', action='store_true', help='Debug flag')
     parser.add_argument('--suffix', type=str, default=None, help='Suffix to add to the experiment tag')
+    parser.add_argument('--SEN12MS_root', type=str, required=True, help='Path to the Sen12MS dataset')
     parser.add_argument('--SEN12MS_df', type=str,
                         help='DataFrame containing info on the whole SEN12MS (the all triplets)',
                         default='data/tiles_info_df.csv',)

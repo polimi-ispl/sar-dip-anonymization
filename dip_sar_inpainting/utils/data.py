@@ -245,17 +245,19 @@ class SEN12MSS1InpaintingDatasetFolder(torch.utils.data.Dataset):
     """
     Simple dataset to load SEN12MS S1 tiles and create a random object removal masks
     """
-    def __init__(self, df: pd.DataFrame, loader: Callable[[str], Any] = load_SEN12MS_s1_raster,
+    def __init__(self, data_root: str, df: pd.DataFrame, loader: Callable[[str], Any] = load_SEN12MS_s1_raster,
                  transforms: Callable[[str], Any] = None, inp_size: Tuple[int, int]=(64, 64),
                  pol_bands: str='VV'):
         """
         Object constructor
+        :param data_root: str, path to the Sen12MS dataset folder
         :param df: pd.DataFrame, DataFrame containing the tiles to be loaded
         :param loader: Callable, function for loading the data. Default load_raster_data
         :param transforms: torchvision.Transforms, transform to apply on the the data
         :param inp_size: List[int, int], area of inpainting
         :param pol_bands: str, polarization bands to choose. If not VV or VH, both are taken
         """
+        self.data_root = data_root
         self.df = df
         self.loader = loader
         self.transforms = transforms
@@ -273,7 +275,7 @@ class SEN12MSS1InpaintingDatasetFolder(torch.utils.data.Dataset):
         """
         # Load and normalize tile
         item = self.df.iloc[item]
-        tile = self.loader(item['path_s1'], self.transforms)
+        tile = self.loader(os.path.join(self.data_root, item['path_s1']), self.transforms)
         if self.transforms:
             tile = self.transforms(tile)
         # Take polarization band
