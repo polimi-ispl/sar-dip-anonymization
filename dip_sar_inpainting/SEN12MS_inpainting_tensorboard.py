@@ -91,10 +91,12 @@ class OptimizationRoutine:
             if self.img_var.shape[1] > 1:
                 # Convert float32 tensor to uint8 numpy array (avoids ugly normalization by WandB and bad plots)
                 orig_plot = torch_to_np(self.img_var)
-                orig_plot = np.concat([(pol - pol.min()) / (pol.max() - pol.min()) for pol in orig_plot])
+                orig_plot = np.concatenate([np.expand_dims((pol - pol.min()) / (pol.max() - pol.min()), axis=0)
+                                            for pol in orig_plot])
                 orig_plot = (orig_plot * 255).astype(np.uint8)
                 inp_plot = torch_to_np(out)
-                inp_plot = np.concat([(pol - pol.min()) / (pol.max() - pol.min()) for pol in inp_plot])
+                inp_plot = np.concatenate([np.expand_dims((pol - pol.min()) / (pol.max() - pol.min()), axis=0)
+                                            for pol in inp_plot])
                 inp_plot = (inp_plot * 255).astype(np.uint8)
                 # Plot them
                 fig, axs = plt.subplots(1, 5, figsize=(24, 12))
@@ -220,16 +222,20 @@ def train(args: argparse.Namespace):
     classes_df = pd.read_csv(args.classes_df, index_col=0)
 
     # Samples filtering #
+
     # Parse arguments
     inp_class = args.inp_classes
     perc_area_cov = args.perc_area_cov
     n_samples_per_class = args.samples_per_class
     pol_bands = args.pol_bands
+
     # Filter classes
     classes_df = classes_df[['path', 'seed', 'season', 'region', 'sensor', 'tile',]+[inp_class]]
+
     # Select n samples per class
     filt_df = classes_df.loc[classes_df[inp_class]>=perc_area_cov].sample(n=n_samples_per_class, random_state=42)
     filt_df = filt_df.drop_duplicates().reset_index(drop=True)  # concatenate everything
+
     # Leave only s1 data
     data_df = filt_df.merge(tiles_df, 'left', left_on=['seed', 'season', 'region', 'tile'],
                             right_on=['seed', 'season', 'region', 'tile'], suffixes=['_lc', '_s1'])
@@ -275,24 +281,22 @@ def train(args: argparse.Namespace):
     inp_df['Polarization_bands'] = pol_bands
     inp_df = inp_df.drop(labels=['sensor_lc'], axis=1)
     for img_idx, (img, mask) in enumerate(tqdm.tqdm(dataloader, desc='Processed images')):
-        # Configure wandb for logging a section for each sample
-        # wandb.init(project=args.project_name, config=config_defaults, tags=[img_name[0]], reinit=True)  # need to work it out
         # Create the network input
         net_input = get_noise(input_depth=args.input_depth, method='noise',
                               spatial_size=img.shape[2:], noise_type=args.noise_dist,
                               var=args.noise_std, noise_range=args.noise_range).type(dtype)
         net_input_saved = net_input.detach().clone()
         noise = net_input.detach().clone()
+
         # Convert the image and mask
         img = img.type(dtype)
         mask = mask.type(dtype)
+
         # Create the network
         net = create_network(net_name=train_hyperparams['net'], input_depth=args.input_depth,
                              pad=args.pad, upsample=args.upsample,
                              activation=train_hyperparams['activation'], need_sigmoid=train_hyperparams['need_sigmoid'],
                              num_channels=img.shape[1], dtype=dtype)
-        # wandb.watch(net, log='gradients', idx=img_idx)  # log gradients of the model (don't care for now)
-        # Create the optimization routine
 
         # Instatiate the loss functions and weight
         if train_hyperparams['loss_1'] != train_hyperparams['loss_2']:
@@ -308,6 +312,7 @@ def train(args: argparse.Namespace):
                                       noise=noise, mask_var=mask, img_var=img, loss_1=loss_1, loss_2=loss_2,
                                       loss_balance=train_hyperparams['loss_balance'],
                                       param_noise=args.param_noise, log_int=args.log_int, num_iter=args.max_iter)
+
         # OPTIMIZATION LOOP #
         p = get_params('net', routine.net, net_input)
         tic = time.time()  # log time for optimization
@@ -316,6 +321,7 @@ def train(args: argparse.Namespace):
                  img_name=f'Sample {img_idx}', tb=tb)
         toc = time.time()
         tb.add_scalar('Optimization time', toc-tic, img_idx)  # save optimization time
+
         # Compute PSNR as an additional metric
         out_img = torch_to_np(net(net_input))
         mse = np.mean((torch_to_np(img)-out_img)**2)
@@ -357,6 +363,7 @@ def train(args: argparse.Namespace):
 
     # Save final inpainting DataFrame
     inp_df.to_pickle(os.path.join(save_dir, 'inpainting_df.pkl'))
+
 
 def main():
     # Parser arguments #

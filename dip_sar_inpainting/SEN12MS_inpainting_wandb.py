@@ -89,10 +89,12 @@ class OptimizationRoutine:
             if self.img_var.shape[1] > 1:  # double polarization plot
                 # Convert float32 tensor to uint8 numpy array (avoids ugly normalization by WandB and bad plots)
                 orig_plot = torch_to_np(self.img_var)
-                orig_plot = np.concat([(pol-pol.min())/(pol.max()-pol.min()) for pol in orig_plot])
+                orig_plot = np.concatenate([np.expand_dims((pol - pol.min()) / (pol.max() - pol.min()), axis=0)
+                                for pol in orig_plot])
                 orig_plot = (orig_plot*255).astype(np.uint8)
                 inp_plot = torch_to_np(out)
-                inp_plot = np.concat([(pol - pol.min()) / (pol.max() - pol.min()) for pol in inp_plot])
+                inp_plot = np.concatenate([np.expand_dims((pol - pol.min()) / (pol.max() - pol.min()), axis=0)
+                                           for pol in inp_plot])
                 inp_plot = (inp_plot * 255).astype(np.uint8)
                 # Log them
                 it_images.append(wandb.Image(orig_plot[0], caption='Original VV polarization'))
