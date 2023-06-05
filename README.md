@@ -21,7 +21,7 @@ conda activate sar-dip-anonymization
 You can use the notebook [proof-of-concept.ipnyb](dip_sar_inpainting/proof-of-concept.ipynb) to have a quick glance on the functioning of the proposed method.  
 The notebook will inpaint a Sentinel-1 GRD SAR image (VV polarization, provided in `dip_sar_inpainting/data/`) and create the GIF you see above.
 
-## Anonymizing Sen12MS samples
+## Anonymizing SEN12MS samples
 The scripts [SEN12MS_inpainting_tensorboard.py](dip_sar_inpainting/SEN12MS_inpainting_tensorboard.py) and [SEN12MS_inpainting_wandb.py](dip_sar_inpainting/SEN12MS_inpainting_wandb.py)
 allow to perform the anonymization/inpainting procedure on Sen12MS samples. The two scripts differ only for the backend used for logging (`tensorboard` or `wandb`, the last providing some nice [features](https://docs.wandb.ai/guides] like) hyperparameter search (see below)).  
 Both scripts accepts different arguments (you can check all of them with `python SEN12MS_inpainting_tensorbooard.py --help`).  
@@ -41,3 +41,6 @@ We used WandB [Sweeps](https://docs.wandb.ai/guides/sweeps) to perform a grid se
 In the `./dip_sar_inpainting/wandb_sweep_search` folder we provide `.yml` files for all the configurations used on the different land-cover classes.  
 We launched a separate sweep for each class, in order to maximize parallel computation on GPUs (see [here](https://wandb.ai/site/articles/multi-gpu-sweeps)).
 
+## Land-cover classification
+In the `./landcover_classification` folder we reported a modified training script to train the models used for the semantic evaluation of the DIP anonymized samples.  
+It is a modified version of the original [SEN12MS Toolbox](https://github.com/schmitt-muc/SEN12MS) script.  
