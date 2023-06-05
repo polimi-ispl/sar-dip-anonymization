@@ -1,0 +1,60 @@
+name: barren_sweep
+description:
+  Sweep with architecture fixed. Other fixed params to reduce the total number of combination in the grid search are input depth, noise-std and loss function.
+  This sweep will focus on the "Barren" class of the SEN12MS dataset. We'll use the SSIM as it is a better metric for comparing results.
+metric:
+  goal: maximize
+  name: Average final dataset loss
+program: ../SEN12MS_inpainting_wandb.py
+method: grid
+early_terminate:
+  type: hyperband
+  s: 2
+  eta: 3
+  max_iter: 27
+parameters:
+  net:
+    value: 'Unet'
+  input_depth:
+    value: 1
+  inp_classes:
+    value: "Barren"
+  perc_area_cov:
+    value: 90
+  inp_size:
+    value: 64
+  pad:
+    values: ['zero', 'reflection']
+  activation:
+    values: ['ReLU', 'Tanh', 'LeakyReLU']
+  upsample:
+    values: ['nearest', 'deconv', 'bilinear']
+  noise_dist:
+    values: ['normal', 'uniform', 'rayleigh']
+  noise_std:
+    value: 1
+  noise_range:
+    value: '-4:4'
+  loss:
+    value: 'ssim'
+  max_iter:
+    value: 6001
+project:
+  SEN12MS-SAR-DIP-inpainting
+command:
+  - ${env}
+  - python
+  - ${program}
+  - "--output_dir"
+  - /nas/home/ecannas/sar_forensics/sar_gan_img_inpainting/experiments/qualitative_analysis_samples
+  - "--SEN12MS_df"
+  - ../data/tiles_info_df.csv
+  - "--classes_df"
+  - ../data/histogram_norm_DFC_2020_scheme.csv
+  - "--slack_user"
+  - edo.cannas
+  - "--lr"
+  - 0.001
+  - "--samples_per_class"
+  - 100
+  - ${args}
