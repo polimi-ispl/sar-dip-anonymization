@@ -19,7 +19,7 @@ conda activate sar-dip-anonymization
 
 ## Proof of concept
 You can use the notebook [proof-of-concept.ipnyb](dip_sar_inpainting/proof-of-concept.ipynb) to have a quick glance on the functioning of the proposed method.  
-The notebook will inpaint a Sentinel-1 GRD SAR image (VV polarization) (provided in `dip_sar_inpainting/data/` and create the GIF you see above.
+The notebook will inpaint a Sentinel-1 GRD SAR image (VV polarization, provided in `dip_sar_inpainting/data/`) and create the GIF you see above.
 
 ## Anonymizing Sen12MS samples
 The scripts [SEN12MS_inpainting_tensorboard.py](dip_sar_inpainting/SEN12MS_inpainting_tensorboard.py) and [SEN12MS_inpainting_wandb.py](dip_sar_inpainting/SEN12MS_inpainting_wandb.py)
