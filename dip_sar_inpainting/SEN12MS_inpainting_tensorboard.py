@@ -224,16 +224,17 @@ def train(args: argparse.Namespace):
     # Samples filtering #
 
     # Parse arguments
-    inp_class = args.inp_classes
+    inp_classes = args.inp_classes
     perc_area_cov = args.perc_area_cov
     n_samples_per_class = args.samples_per_class
     pol_bands = args.pol_bands
 
     # Filter classes
-    classes_df = classes_df[['path', 'seed', 'season', 'region', 'sensor', 'tile',]+[inp_class]]
+    classes_df = classes_df[['path', 'seed', 'season', 'region', 'sensor', 'tile',]+inp_classes]
 
     # Select n samples per class
-    filt_df = classes_df.loc[classes_df[inp_class]>=perc_area_cov].sample(n=n_samples_per_class, random_state=42)
+    filt_df = pd.concat([classes_df.loc[classes_df[inp_class]>=perc_area_cov].sample(n=n_samples_per_class, random_state=42)
+                         for inp_class in inp_classes])
     filt_df = filt_df.drop_duplicates().reset_index(drop=True)  # concatenate everything
 
     # Leave only s1 data
@@ -372,8 +373,6 @@ def main():
     parser = argparse.ArgumentParser()
     # Execution params
     parser.add_argument('--gpu', type=int, default=None, help='GPU on which execute the code')
-    parser.add_argument('--project_name', type=str, help='Name of the project for the WandB logging',
-                        default='SEN12MS-SAR-DIP-inpainting')
     parser.add_argument('--output_dir', type=str, help='Directory for storing the results of the experiments',
                         required=True)
     parser.add_argument('--log_int', type=int, help='Logging interval for wandb', default=500)
@@ -390,7 +389,7 @@ def main():
     parser.add_argument('--inp_classes', type=str, help='Classes to use for performing inpainting',
                         choices=["Forest", "Shrubland", "Savanna", "Grassland", "Wetlands",
                                  "Croplands", "Urban/Built-up", "Snow/Ice", "Barren", "Water"],
-                        default='Urban/Built-up')
+                        default='Urban/Built-up', nargs='+')
     parser.add_argument('--perc_area_cov', type=int,
                         help='Percentiles of area covered by the classes to be inpainted. This parameters allows to '
                              'filter the samples depending on the type of mixture of morphologies we want in the samples.',
