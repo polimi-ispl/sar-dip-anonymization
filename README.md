@@ -1,4 +1,18 @@
 # Deep Image Prior Amplitude SAR Image Anonymization
+<div align="center">
+  
+<!-- **Authors:** -->
+
+**_¹ [Edoardo Daniele Cannas](linkedin.com/in/edoardo-daniele-cannas-9a7355146/), ¹ [Sara Mandelli](https://www.linkedin.com/in/saramandelli/), ¹ [Paolo Bestagini](https://www.linkedin.com/in/paolo-bestagini-390b461b4/)_**
+
+**_¹ [Stefano Tubaro](https://www.linkedin.com/in/stefano-tubaro-73aa9916/), ² [Edward J. Delp](https://www.linkedin.com/in/ejdelp/)_**
+
+
+<!-- **Affiliations:** -->
+
+¹ [Image and Sound Processing Laboratory](http://ispl.deib.polimi.it/), ² [Video and Image Processing Laboratory](https://engineering.purdue.edu/~ips/index.html)
+</div>
+
 This is the official code repository for the paper *Deep Image Prior Amplitude SAR Image Anonymization*, under submission
 to MDPI Remote Sensing.
 The repository is currently **under development**, so feel free to open an issue if you encounter any problem.
