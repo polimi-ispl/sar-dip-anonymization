@@ -50,7 +50,7 @@ In the `./quality_analysis` folder this [notebook](quality_analysis/DIP_anonymiz
 We also provide for convenience the features extracted by the 3 CNNs used for the semantic metrics.
 
 ## Credits
-[* Image and Sound Processing Lab](http://ispl.deib.polimi.it/)
+[* Image and Sound Processing Lab](http://ispl.deib.polimi.it/)  
 [^ Video and Image Processing Laboratory](https://engineering.purdue.edu/~ips/index.html)
 - Edoardo Daniele Cannas*
 - Sara Mandelli*
