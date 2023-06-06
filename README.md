@@ -1,7 +1,7 @@
 # Deep Image Prior Amplitude SAR Image Anonymization
 This is the official code repository for the paper *Deep Image Prior Amplitude SAR Image Anonymization*, under submission
 to MDPI Remote Sensing.
-The repository is currently **under maintenance**, the first release is coming soon.
+The repository is currently **under development**, so feel free to open an issue if you encounter any problem.
 ![](assets/GA.png)
 ![](assets/dip_gif_animation/DIP_iteration_progress.gif)
 
@@ -43,4 +43,15 @@ We launched a separate sweep for each class, in order to maximize parallel compu
 
 ## Land-cover classification
 In the `./landcover_classification` folder we reported a modified training script to train the models used for the semantic evaluation of the DIP anonymized samples.  
-It is a modified version of the original [SEN12MS Toolbox](https://github.com/schmitt-muc/SEN12MS) script.  
+It is a modified version of the original [SEN12MS Toolbox](https://github.com/schmitt-muc/SEN12MS) script to follow the train/val/test splits used in the paper.
+
+## DIP anonymized images quality analysis
+In the `./quality_analysis` folder this [notebook](quality_analysis/DIP_anonymized_images_quality_analysis_COMPLETE.ipynb) will compute the results and figures shown in Section 4 of the paper.  
+We also provide for convenience the features extracted by the 3 CNNs used for the semantic metrics.
+
+## Contributors
+- Edoardo Daniele Cannas
+- Sara Mandelli
+- Paolo Bestagini
+- Stefano Tubaro
+- Edward J. Delp
