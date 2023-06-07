@@ -37,7 +37,7 @@ The notebook will inpaint a Sentinel-1 GRD SAR image (VV polarization, provided 
 
 ## Anonymizing SEN12MS samples
 The scripts [SEN12MS_inpainting_tensorboard.py](dip_sar_inpainting/SEN12MS_inpainting_tensorboard.py) and [SEN12MS_inpainting_wandb.py](dip_sar_inpainting/SEN12MS_inpainting_wandb.py)
-allow to perform the anonymization/inpainting procedure on Sen12MS samples. The two scripts differ only for the backend used for logging (`tensorboard` or `wandb`, the last providing some nice [features](https://docs.wandb.ai/guides] like) hyperparameter search (see below)).  
+allow to perform the anonymization/inpainting procedure on Sen12MS samples. The two scripts differ only for the backend used for logging (`tensorboard` or `wandb`, the last providing some nice [features](https://docs.wandb.ai/guides) like hyperparameter search [see below]).  
 Both scripts accepts different arguments (you can check all of them with `python SEN12MS_inpainting_tensorbooard.py --help`).  
 Basically, the scripts take `--samples_per_class` tiles of the land-cover classes specified with `--inp_classes`, make sure that each sample possesses at least `--perc_area_cov` percentage of its surface covered by a single land-cover class, and inpaint them with the DIP.
 The only required parameters are:
