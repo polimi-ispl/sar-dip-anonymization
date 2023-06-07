@@ -14,7 +14,7 @@
 </div>
 
 This is the official code repository for the paper *Deep Image Prior Amplitude SAR Image Anonymization*, under submission
-to MDPI Remote Sensing.
+to MDPI Remote Sensing.  
 The repository is currently **under development**, so feel free to open an issue if you encounter any problem.
 ![](assets/GA.png)
 ![](assets/dip_gif_animation/DIP_iteration_progress.gif)
