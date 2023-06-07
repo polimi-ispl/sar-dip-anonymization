@@ -68,11 +68,3 @@ It is a modified version of the original [SEN12MS Toolbox](https://github.com/sc
 In the `./quality_analysis` folder this [notebook](quality_analysis/DIP_anonymized_images_quality_analysis_COMPLETE.ipynb) will compute the results and figures shown in Section 4 of the paper.  
 We also provide for convenience the features extracted by the 3 CNNs used for the semantic metrics.
 
-## Credits
-[* Image and Sound Processing Lab](http://ispl.deib.polimi.it/)  
-[^ Video and Image Processing Laboratory](https://engineering.purdue.edu/~ips/index.html)
-- Edoardo Daniele Cannas*
-- Sara Mandelli*
-- Paolo Bestagini*
-- Stefano Tubaro*
-- Edward J. Delp^
