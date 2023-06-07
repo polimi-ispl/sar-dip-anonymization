@@ -55,6 +55,11 @@ We used WandB [Sweeps](https://docs.wandb.ai/guides/sweeps) to perform a grid se
 In the `./dip_sar_inpainting/wandb_sweep_search` folder we provide `.yml` files for all the configurations used on the different land-cover classes.  
 We launched a separate sweep for each class, in order to maximize parallel computation on GPUs (see [here](https://wandb.ai/site/articles/multi-gpu-sweeps)).
 
+## Generating the anonymized SAR images dataset
+To generate the dataset analyzed in the paper, you can simply run the `./dip_sar_inpainting/create_anonymized_dataset.sh` bash script.  
+The script will perform a separate inpainting process for each land-cover class, and save them in the `OUTPUT_DIR` folder.  
+You can then use them with the [quality analysis notebook](quality_analysis/DIP_anonymized_images_quality_analysis_COMPLETE.ipynb) (see below) to perform the experiments of the paper.
+
 ## Land-cover classification
 In the `./landcover_classification` folder we reported a modified training script to train the models used for the semantic evaluation of the DIP anonymized samples.  
 It is a modified version of the original [SEN12MS Toolbox](https://github.com/schmitt-muc/SEN12MS) script to follow the train/val/test splits used in the paper.
