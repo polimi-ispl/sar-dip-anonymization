@@ -13,9 +13,8 @@
 ¹ [Image and Sound Processing Laboratory](http://ispl.deib.polimi.it/), ² [Video and Image Processing Laboratory](https://engineering.purdue.edu/~ips/index.html)
 </div>
 
-This is the official code repository for the paper *Deep Image Prior Amplitude SAR Image Anonymization*, under submission
-to MDPI Remote Sensing.  
-The repository is currently **under development**, so feel free to open an issue if you encounter any problem.
+This is the official code repository for the paper *Deep Image Prior Amplitude SAR Image Anonymization*, published on [MDPI Remote Sensing](https://www.mdpi.com/2072-4292/15/15/3750).  
+The repository is currently **under development**, so feel free to open an issue if you encounter any problems.
 ![](assets/GA.png)
 ![](assets/dip_gif_animation/DIP_iteration_progress.gif)
 
